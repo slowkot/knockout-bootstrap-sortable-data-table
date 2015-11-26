@@ -3,7 +3,7 @@
  * https://github.com/slowkot/knockout-bootstrap-sortable-data-table
  */
 
-; (function () {
+;(function () {
     'use strict';
     var proto = {};
 
