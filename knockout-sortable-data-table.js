@@ -5,7 +5,23 @@
 
 ;(function () {
     'use strict';
-    var proto = {};
+    var proto = {},
+        sorter = function(prop, direction) {
+            var sortBy = typeof prop === 'function'
+                        ? prop
+                        : prop != null
+                            ? function (item) { return item[prop]; }
+                            : function (item) { return item; },
+                compare = function(a, b) {
+                    a = sortBy(a);
+                    b = sortBy(b);
+                    return a < b ? -1 : (a > b ? 1 : 0);
+                };
+
+            return direction === 'desc'
+                       ? function(a, b) { return compare(b, a); }
+                       : compare;
+        };
 
     function TableColumn(column) {
 
@@ -18,42 +34,30 @@
         this.cssClass = ko.observable('');
     }
 
-    function DataTable(config) {
-        this.config = config;
-        this.sortable = config.sortable || false;
-        this.throttle = config.throttle || 100;
-        this.loader = config.loader;
-        this.selectedItem = ko.observableArray();
-        this.items = ko.observableArray(config.items || []);
-        this.columns = [];
-        for (var i = 0; i < config.columns.length; i++) {
-            var column = config.columns[i];
-            column.sortable = column.sortable || this.sortable;
-            this.columns.push(new TableColumn(column));
-        }
-        this.sorting = { sortColumn: null, sortOrder: '' };
-        this.comparator = config.comparator || function (a, b) {
-            return a && b && a.id && b.id ? a.id === b.id : a === b;
-        };
-        this.totalPages = ko.observable();
-        this.pageIndex = ko.observable(0);
-        this.pageSize = ko.observable(config.pageSize || 10);
-        this.pageRadius = ko.observable(config.pageRadius || 2);
-        this.isFirstPage = ko.computed(function () { return this.pageIndex() === 0 }, this);
-        this.isLastPage = ko.computed(function () { return this.pageIndex() === this.totalPages() - 1 }, this);
+    function Page(page) {
+
+        this.sizes = ko.observable(page.sizes || []);
+        this.sizes.selected = ko.observable(page.size && (!this.sizes().length || this.sizes().indexOf(page.size) >= 0) ? page.size : ko.utils.arrayFirst(this.sizes()) || 0);
+
+
+        this.index = ko.observable(page.index || 0);
+        this.count = ko.observable(0);
+        this.radius = ko.observable(page.radius || 2);
+
+
         this.pages = ko.computed(function () {
-            var pages = [];
-            var page, elem, last;
-            for (page = 1; page <= this.totalPages() ; page++) {
-                var activePage = this.pageIndex() + 1;
-                var totalPage = this.totalPages();
-                var radius = this.pageRadius();
-                if (page == 1 || page == totalPage) {
+            var pages = [],
+                pageCount = this.count(),
+                activePage = this.index() + 1,
+                radius = this.radius(),
+                page, elem, last;
+            for (page = 1; page <= pageCount; page++) {
+                if (page == 1 || page == pageCount) {
                     elem = page;
                 } else if (activePage < 2 * radius + 1) {
                     elem = (page <= 2 * radius + 1) ? page : 'ellipsis';
-                } else if (activePage > totalPage - 2 * radius) {
-                    elem = (totalPage - 2 * radius <= page) ? page : 'ellipsis';
+                } else if (activePage > pageCount - 2 * radius) {
+                    elem = (pageCount - 2 * radius <= page) ? page : 'ellipsis';
                 } else {
                     elem = (Math.abs(activePage - page) <= radius ? page : 'ellipsis');
                 }
@@ -65,43 +69,85 @@
             return pages;
         }, this);
 
+        this.isFirst = ko.computed(function () { return this.index() === 0 }, this);
+        this.isLast = ko.computed(function () { return this.index() === this.count() - 1 }, this);
+
+        this.sizes.selected.subscribe(this.index.bind(this, 0));
+
+
+        ['prev', 'next', 'move'].forEach(function(key) {
+            this[key] = this[key].bind(this);
+        }, this);
+    }
+
+    ko.utils.extend(Page.prototype, {
+        prev: function() {
+            var index = this.index();
+            if (index > 0) {
+                this.index(index - 1);
+            }
+        },
+
+        next: function() {
+            var index = this.index();
+            if (index < this.count() - 1) {
+                this.index(index + 1);
+            }
+        },
+
+        move: function(index) {
+            this.index(index - 1);
+        }
+    });
+
+    function DataTable(config) {
+        config.columns = [];
+        this.config = config;
+        this.sortable = config.sortable || false;
+        this.throttle = config.throttle || 100;
+        this.loader = config.loader || this._staticLoader;
+        this.selectedItem = ko.observableArray();
+        this.items = ko.observableArray(config.items || []);
+        this.columns = [];
+        for (var i = 0; i < config.columns.length; i++) {
+            var column = config.columns[i];
+            column.sortable = column.sortable || this.sortable;
+            this.columns.push(new TableColumn(column));
+        }
+        this.sorting = { sortColumn: null, sortOrder: '' };
+        this.comparator = config.comparator || this._defaultComparator;
+
+        this.page = new Page(ko.utils.extend({
+            sizes: [2, 4, 5, 10],
+            size: 4
+        }, this.config.page || {}));
+
+        
+
         this.content = ko.computed(this.reload, this).extend({ throttle: this.throttle });
 
         this.cssMap = { '': '', 'asc': 'sortDown', 'desc': 'sortUp' };
-
+        
         for (var m in proto) {
             if (proto.hasOwnProperty(m)) {
                 this[m] = this[m].bind(this);
             }
         }
+        this.reload();
     }
 
-    $.extend(DataTable.prototype, proto = {
+    ko.utils.extend(DataTable.prototype, proto = {
 
-        prevPage: function () {
-            if (this.pageIndex() > 0) {
-                this.pageIndex(this.pageIndex() - 1);
-            }
-        },
-
-        nextPage: function () {
-            if (this.pageIndex() < this.totalPages() - 1) {
-                this.pageIndex(this.pageIndex() + 1);
-            }
-        },
-
-        moveToPage: function (index) {
-            this.pageIndex(index - 1);
-        },
-
-        reload: function (preserveSelection) {
+        reload: function(preserveSelection) {
             this._preserveSelection = preserveSelection || null;
-            this.loader(
-                this.pageIndex() + 1,
-                this.pageSize(),
-                (this.sorting.sortColumn ? this.sorting.sortColumn.sortField : ''),
-                this.sorting.sortOrder,
-                this._reloadCallback.bind(this));
+            this.loader({
+                pageIndex: this.page.index() + 1,
+                pageSize: this.page.sizes.selected(),
+                sortBy: (this.sorting.sortColumn ? this.sorting.sortColumn.sortField : ''),
+                sortDirection: this.sorting.sortOrder
+            },
+            this._reloadCallback.bind(this),
+            this._totalCallback.bind(this));
         },
 
         restoreSelection: function () {
@@ -132,14 +178,40 @@
             this.reload();
         },
 
+        toArray: function(target) {
+            var data = ko.unwrap(target || {}),
+                dataArr = [];
+            for (var key in data) {
+                if (data.hasOwnProperty(key) && (data[key] || data[key] === false || data[key] === 0)) {
+                    dataArr.push([data[key], key]);
+                }
+            }
+            return dataArr;
+        },
+
+        _staticLoader: function (options, callback, totalCallback) {
+            var items = this.config.items.slice();
+            items.sort(sorter(options.sortBy, options.sortDirection));
+            callback(options.pageSize ? items.slice(options.pageSize * (options.pageIndex - 1), options.pageSize * options.pageIndex) : items);
+            totalCallback(items.length);
+        },
+
         _reloadCallback: function (data) {
-            this.items(data.content);
+            this.items(data);
             if (this._preserveSelection === true) {
                 this.restoreSelection();
             }
-            this.pageIndex(Math.min(data.number, data.totalPages - 1));
-            this.totalPages(data.totalPages);
-            this.pageSize(data.size);
+            //this.pageIndex(Math.min(data.number, data.totalPages - 1) || 1);
+            //this.totalPages(data.totalPages || 0);
+            //this.pageSize(data.size || 2);
+        },
+
+        _totalCallback: function(total) {
+            this.page.sizes.selected() && this.page.count(Math.ceil(total / this.page.sizes.selected()));
+        },
+
+        _defaultComparator: function (a, b) {
+            return a && b && a.id && b.id ? a.id === b.id : a === b;
         }
     });
 
@@ -157,7 +229,7 @@
     </style>');
 
     templateEngine.addTemplate = function (templateName, templateMarkup) {
-        document.write("<script type='text/html' id='" + templateName + "'>" + templateMarkup + '<' + '/script>');
+        document.write('<script type="text/html" id="' + templateName + '">' + templateMarkup + '<' + '/script>');
     };
 
     templateEngine.addTemplate('ko_table_header', '\
@@ -231,9 +303,9 @@
         update: function (element, valueAccessor, allBindingsAccessor) {
             var viewModel = valueAccessor(), allBindings = allBindingsAccessor();
 
-            var tableHeaderTemplateName = allBindings.tableHeaderTemplate || 'ko_table_header',
-                tableBodyTemplateName = allBindings.tableBodyTemplate || 'ko_table_body',
-                tablePagerTemplateName = allBindings.tablePagerTemplate || 'ko_table_pager';
+            var tableHeaderTemplateName = allBindings.dtHeaderTemplate || 'ko_table_header',
+                tableBodyTemplateName = allBindings.dtBodyTemplate || 'ko_table_body',
+                tablePagerTemplateName = allBindings.dtFooterTemplate || 'ko_table_pager';
 
             $(element).empty();
 
