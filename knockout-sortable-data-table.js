@@ -38,7 +38,7 @@
         comparator: null,
         page: {
             sizes: [10, 25, 50, 100],
-            size: 100,
+            size: null,
             index: 0,
             radius: 2
         },
@@ -207,7 +207,7 @@
 
         toArray: function (target, values) {
             if (Array.isArray(target)) {
-                return target;
+                return  values !== 'key' ? target : target.map(function(x, i) { return i + 1; });
             }
 
             var data = ko.unwrap(target || {}),
@@ -227,7 +227,7 @@
 
         _staticLoader: function (options, callback, totalCallback) {
             var items = this._settings.items.slice();
-            items.sort(sorter(options.sortBy, options.sortDirection));
+            options.sortBy && items.sort(sorter(options.sortBy, options.sortDirection));
             callback(options.pageSize ? items.slice(options.pageSize * (options.pageIndex - 1), options.pageSize * options.pageIndex) : items);
             totalCallback(items.length);
         },
@@ -339,10 +339,7 @@
     </tfoot>');
 
     ko.bindingHandlers.dataTable = {
-        init: function () {
-            return { 'controlsDescendantBindings': true };
-        },
-        update: function (element, valueAccessor, allBindingsAccessor) {
+        init: function (element, valueAccessor, allBindingsAccessor) {
             var viewModel = valueAccessor(), allBindings = allBindingsAccessor();
 
             var tableHeaderTemplateName = allBindings.dtHeaderTemplate || 'ko_table_header',
@@ -368,6 +365,15 @@
             // Render table pager
             var pagerContainer = table.appendChild(document.createElement('DIV'));
             ko.renderTemplate(tablePagerTemplateName, viewModel, { templateEngine: templateEngine }, pagerContainer, 'replaceNode');
+            return { 'controlsDescendantBindings': true };
+        },
+        update: function (element, valueAccessor, allBindingsAccessor) {
+            //var context = ko.contextFor(element),
+            //    viewModel = ko.unwrap(valueAccessor());
+            //if (Array.isArray(viewModel)) {
+            //    context.items(viewModel);
+            //}
+            
         }
     };
 })();
