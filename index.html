@@ -94,7 +94,7 @@
         <h1>Knockout bootstrap pageable and sortable data table</h1>
         <table class="table" data-bind="dataTable: tableViewModel, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
         <table class="table" data-bind="dataTable: items, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
-        <table class="table" data-bind="dataTable: { items: tableViewModel.items(), columns: 'name, position, office', sortable: true }, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
+        <table class="table" data-bind="dataTable: { items: persons, columns: 'name, position, office', sortable: true }, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
     </div>
     <script type="text/html" id="dt_table_header">
         <thead>
