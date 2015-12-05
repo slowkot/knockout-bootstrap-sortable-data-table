@@ -274,77 +274,93 @@
         document.write('<script type="text/html" id="' + templateName + '">' + templateMarkup + '<' + '/script>');
     };
 
-    templateEngine.addTemplate('ko_table_header', '\
+    templateEngine.addTemplate('dt_table_header', '\
                         <thead>\
-                            <tr data-bind="foreach: columns">\
-                               <!-- ko if: $data.sortable -->\
-                                   <th class="dt-header" data-bind="text: name, css: cssClass, style: { width: width }, click: $root.sort"></th>\
-                               <!-- /ko -->\
-                               <!-- ko ifnot: $data.sortable -->\
-                                   <th class="dt-header" data-bind="text: name, css: cssClass, style: { width: width }"></th>\
-                               <!-- /ko -->\
-                            </tr>\
-                        </thead>');
-
-    templateEngine.addTemplate('ko_table_body', '\
-                        <tbody data-bind="foreach: items">\
-                            <tr data-bind="click: $root.selectItem, css: {dt-selected : $root.comparator($root.items.selected(), $data)}">\
-                                <!-- ko foreach: $parent.columns -->\
-                                    <!-- ko if: template -->\
-                                        <td data-bind="template: { name: template, data: typeof value == \'function\' ? value($parent) : $parent[value] }"></td>\
-                                    <!-- /ko -->\
-                                    <!-- ko ifnot: template -->\
-                                        <td data-bind="text: typeof value == \'function\' ? value($parent) : $parent[value] "></td>\
-                                    <!-- /ko -->\
-                                <!-- /ko -->\
-                            </tr>\
-                        </tbody>');
-
-    templateEngine.addTemplate('ko_table_pager', '\
-        <tfoot>\
-        <tr>\
-        <td data-bind="attr: {colspan: columns.length}">\
-            <div data-bind="foreach: [10, 25, 50, 100]">\
-                <!-- ko if: $data == $root.pageSize() -->\
-                    <span data-bind="text: $data + \' \'"/>\
-                <!-- /ko -->\
-                <!-- ko if: $data != $root.pageSize() -->\
-                    <a href="#" data-bind="text: $data + \' \', click: function() { $root.pageSize($data) }"/>\
-                <!-- /ko -->\
-            </div>\
-            <div class="pagination" data-bind="if: totalPages() > 1">\
-                <ul>\
-                    <li data-bind="css: { disabled: isFirstPage() }">\
-                        <a href="#" data-bind="click: prevPage">«</a>\
-                    </li>\
-                    <!-- ko foreach: pages() -->\
-                        <!-- ko if: $data == "ellipsis" -->\
-                            <li>\
-                                <span>...</span>\
-                            </li>\
+            <tr>\
+                <!-- ko if: columns && columns.length -->\
+                    <!-- ko foreach: columns -->\
+                        <!-- ko if: $data.sortable -->\
+                            <th class="dt-header" data-bind="text: name, css: cssClass, style: { width: width }, click: $root.sort"></th>\
                         <!-- /ko -->\
-                        <!-- ko if: $data != "ellipsis" -->\
-                            <li data-bind="css: { active: $data === ($root.pageIndex() + 1)}">\
-                                <a href="#" data-bind="text: $data, click: $root.moveToPage"/>\
-                            </li>\
+                        <!-- ko ifnot: $data.sortable -->\
+                            <th class="dt-header" data-bind="text: name, css: cssClass, style: { width: width }"></th>\
                         <!-- /ko -->\
                     <!-- /ko -->\
-                    <li data-bind="css: { disabled: isLastPage() }">\
-                        <a href="#" data-bind="click: nextPage">»</a>\
-                    </li>\
-                </ul>\
-            </div>\
-        </td>\
-        </tr>\
-    </tfoot>');
+                <!-- /ko -->\
+                <!-- ko if: (!columns || !columns.length) && items().length -->\
+                    <!-- ko foreach: $root.toArray(items()[0], \'key\') -->\
+                        <th data-bind="text: $data"></th>\
+                    <!-- /ko -->\
+                <!-- /ko -->\
+            </tr>\
+        </thead>');
+
+    templateEngine.addTemplate('dt_table_body', '\
+                        <tbody data-bind="foreach: items">\
+            <tr data-bind="click: $root.selectItem, css: { \'dt-selected\': $root.comparator($root.items.selected(), $data) }">\
+                <!-- ko if: $parent.columns && $parent.columns.length -->\
+                    <!-- ko foreach: $parent.columns -->\
+                        <!-- ko if: template -->\
+                            <td data-bind="template: { name: template === true || html ? null : template, data: value == null ?  $parent : typeof value == \'function\' ? value($parent) : $parent[value] , nodes: html ? ko.utils.parseHtmlFragment(html) : $root.columns.htmlTemplate }"></td>\
+                        <!-- /ko -->\
+                        <!-- ko ifnot: template -->\
+                            <td data-bind="text: typeof value == \'function\' ? value($parent) : $parent[value] "></td>\
+                        <!-- /ko -->\
+                    <!-- /ko -->\
+                <!-- /ko -->\
+                <!-- ko ifnot: $parent.columns && $parent.columns.length -->\
+                    <!-- ko foreach: $root.toArray($data, \'value\') -->\
+                        <td data-bind="text: $data"></td>\
+                    <!-- /ko -->\
+                <!-- /ko -->\
+            </tr>\
+        </tbody>');
+
+    templateEngine.addTemplate('dt_table_pager', '\
+        <tfoot>\
+            <tr data-bind="with: page">\
+                <td data-bind="if: sizes.selected, attr: { colspan: $root.columns.length || $root.toArray($root.items()[0], \'key\').length || 1 }">\
+                    <!-- ko if: sizes().length > 1 -->\
+                        <div data-bind="foreach: sizes">\
+                            <!-- ko if: $data == $parent.sizes.selected() -->\
+                            <span data-bind="text: $data + \' \'"></span>\
+                            <!-- /ko -->\
+                            <!-- ko if: $data != $parent.sizes.selected() -->\
+                            <a href="#" data-bind="text: $data + \' \', click: function() { $parent.sizes.selected($data); }"></a>\
+                            <!-- /ko -->\
+                        </div>\
+                    <!-- /ko -->\
+                    <nav data-bind="if: count() >1">\
+                        <ul class="pagination">\
+                            <li data-bind="css: { disabled: isFirst }">\
+                                <a href="#" data-bind="click: prev">«</a>\
+                            </li>\
+                            <!-- ko foreach: pages -->\
+                                <!-- ko if: $data == "ellipsis" -->\
+                                    <li><span>...</span></li>\
+                                <!-- /ko -->\
+                                <!-- ko if: $data != "ellipsis" -->\
+                                    <li data-bind="css: { active: $data === ($parent.index() + 1)}">\
+                                        <a href="#" data-bind="text: $data, click: $parent.move"></a>\
+                                    </li>\
+                                <!-- /ko -->\
+                            <!-- /ko -->\
+                            <li data-bind="css: { disabled: isLast }">\
+                                <a href="#" data-bind="click: next">»</a>\
+                            </li>\
+                        </ul>\
+                    </nav>\
+                </td>\
+            </tr>\
+        </tfoot>');
 
     ko.bindingHandlers.dataTable = {
         init: function (element, valueAccessor, allBindingsAccessor) {
             var viewModel = valueAccessor(), allBindings = allBindingsAccessor();
 
-            var tableHeaderTemplateName = allBindings.dtHeaderTemplate || 'ko_table_header',
-                tableBodyTemplateName = allBindings.dtBodyTemplate || 'ko_table_body',
-                tablePagerTemplateName = allBindings.dtFooterTemplate || 'ko_table_pager';
+            var tableHeaderTemplateName = allBindings.dtHeaderTemplate || 'dt_table_header',
+                tableBodyTemplateName = allBindings.dtBodyTemplate || 'dt_table_body',
+                tablePagerTemplateName = allBindings.dtFooterTemplate || 'dt_table_pager';
 
             ko.utils.emptyDomNode(element);
 

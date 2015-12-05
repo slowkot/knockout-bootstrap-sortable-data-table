@@ -7,7 +7,7 @@
 
     <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-debug.js"></script>
-    <script type="text/javascript" src="knockout-sortable-data-table.js"></script>
+    <script type="text/javascript" src="ko.dataTable.js"></script>
 
     <script type="text/javascript">
         var id = "PersonID",
@@ -92,11 +92,11 @@
 <body>
     <div class="container">
         <h1>Knockout bootstrap pageable and sortable data table</h1>
-        <table class="table" data-bind="dataTable: tableViewModel, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
-        <table class="table" data-bind="dataTable: items, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
-        <table class="table" data-bind="dataTable: { items: persons, columns: 'name, position, office', sortable: true }, dtHeaderTemplate: 'dt_table_header', dtBodyTemplate: 'dt_table_body', dtFooterTemplate: 'dt_table_pager'"></table>
+        <table class="table" data-bind="dataTable: tableViewModel"></table>
+        <table class="table" data-bind="dataTable: items"></table>
+        <table class="table" data-bind="dataTable: { items: persons, columns: 'name, position, office', sortable: true }"></table>
     </div>
-    <script type="text/html" id="dt_table_header">
+    <script type="text/html" id="dt_table_header1">
         <thead>
             <tr>
                 <!-- ko if: columns && columns.length -->
@@ -117,7 +117,7 @@
             </tr>
         </thead>
     </script>
-    <script type="text/html" id="dt_table_body">
+    <script type="text/html" id="dt_table_body1">
         <tbody data-bind="foreach: items">
             <tr data-bind="click: $root.selectItem, css: { 'dt-selected': $root.comparator($root.items.selected(), $data) }">
                 <!-- ko if: $parent.columns && $parent.columns.length -->
@@ -138,7 +138,7 @@
             </tr>
         </tbody>
     </script>
-    <script type="text/html" id="dt_table_pager">
+    <script type="text/html" id="dt_table_pager1">
         <tfoot>
             <tr data-bind="with: page">
                 <td data-bind="if: sizes.selected, attr: { colspan: $root.columns.length || $root.toArray($root.items()[0], 'key').length || 1 }">
